@@ -26,7 +26,7 @@ def run_single_asset_module():
 
     st.sidebar.header("Asset Parameters")
     asset = st.sidebar.selectbox("Choose an asset:", 
-                                 ["BTC-USD", "XAUUSD=X", "EURUSD=X", "AAPL"])
+                                 ["BTCUSDT", "XAUUSD=X", "EURUSD=X", "AAPL"])
 
     strategy_choice = st.sidebar.selectbox("Choose Strategy:", 
                                            ["Buy & Hold", "Momentum"])

@@ -45,7 +45,46 @@ def get_realtime_price(symbol):
 # HISTORICAL DATA
 # -----------------
 def load_historical_data(symbol):
+    # Try yfinance first
     df = yf.download(symbol, period="2y")  # 2 years history
+    if df is None or df.empty:
+        # If yfinance failed (common for some crypto tickers), attempt Binance klines
+        try:
+            # Derive a Binance-style symbol when possible, e.g. 'BTC-USD' -> 'BTCUSDT'
+            bin_sym = None
+            if "-" in symbol:
+                base = symbol.split("-")[0]
+                bin_sym = base + "USDT"
+            elif symbol.endswith("USDT"):
+                bin_sym = symbol
+            elif symbol.endswith("USD") and len(symbol) <= 8:
+                # e.g. 'BTCUSD' or short tickers
+                base = symbol.replace("USD", "")
+                bin_sym = base + "USDT"
+
+            if bin_sym:
+                url = f"https://api.binance.com/api/v3/klines?symbol={bin_sym}&interval=1d&limit=1000"
+                resp = requests.get(url, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    # kline: [open_time, open, high, low, close, volume, close_time, ...]
+                    rows = []
+                    for item in data:
+                        ts = int(item[0]) // 1000
+                        close = float(item[4])
+                        rows.append((pd.to_datetime(ts, unit="s"), close))
+                    df2 = pd.DataFrame(rows, columns=["date", "price"]).set_index("date")
+                    df2.index.name = None
+                    df2 = df2.sort_index()
+                    df2.dropna(inplace=True)
+                    return df2
+        except Exception:
+            pass
+
+        # return empty DataFrame with expected column if everything failed
+        return pd.DataFrame(columns=["price"])
+
     df = df.rename(columns={"Close": "price"})
     df = df[["price"]]
     df.dropna(inplace=True)
