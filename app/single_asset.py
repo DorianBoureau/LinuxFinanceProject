@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from app.utils import (
+from utils import (
     get_realtime_price, 
     load_historical_data, 
     max_drawdown, 
