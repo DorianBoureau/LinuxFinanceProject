@@ -12,17 +12,32 @@ def get_realtime_price(symbol):
     Récupère le prix en temps réel via l'API Binance (crypto)
     ou via yfinance (indices/actions).
     """
-    # Crypto case:
-    if symbol.endswith("USDT") or symbol.endswith("USD"):
+    # Crypto case: only call Binance for USDT pairs (Binance uses e.g. BTCUSDT)
+    if symbol.endswith("USDT"):
         try:
             url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
             r = requests.get(url).json()
-            return float(r["price"])
-        except:
+            if isinstance(r, dict) and "price" in r:
+                return float(r["price"])
+        except Exception:
             pass
     
     # Other assets
     data = yf.Ticker(symbol).history(period="1d")
+    # Defensive: if no data, try a crypto-style fallback (e.g. BTC-USD -> BTCUSDT)
+    if data is None or data.empty or "Close" not in data.columns or len(data["Close"]) == 0:
+        # Attempt automatic crypto mapping for tickers with a dash (common for yfinance crypto symbols)
+        try:
+            if "-" in symbol:
+                # e.g. BTC-USD -> BTCUSDT
+                alt = symbol.replace("-", "") + "T" if not symbol.endswith("USDT") else symbol
+                url = f"https://api.binance.com/api/v3/ticker/price?symbol={alt}"
+                r = requests.get(url).json()
+                if isinstance(r, dict) and "price" in r:
+                    return float(r["price"])
+        except Exception:
+            pass
+        raise ValueError(f"No price data found for symbol '{symbol}'")
     return float(data["Close"].iloc[-1])
 
 

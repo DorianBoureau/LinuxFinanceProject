@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import (
+from app.utils import (
     get_realtime_price, 
     load_historical_data, 
     max_drawdown, 
@@ -35,10 +35,21 @@ def run_single_asset_module():
         window = st.sidebar.slider("Momentum Window", 5, 60, 20)
 
     st.subheader(f"Current Price of {asset}")
-    price = get_realtime_price(asset)
-    st.metric("Real-Time Price", price)
+    try:
+        price = get_realtime_price(asset)
+    except Exception as e:
+        st.error(f"Real-time price unavailable for {asset}: {e}")
+        price = None
+
+    if price is not None:
+        st.metric("Real-Time Price", price)
+    else:
+        st.metric("Real-Time Price", "N/A")
 
     df = load_historical_data(asset)
+    if df is None or df.empty:
+        st.error(f"Historical data unavailable for {asset} — cannot compute metrics or plots.")
+        return
 
     # Apply selected strategy
     if strategy_choice == "Buy & Hold":
@@ -49,15 +60,37 @@ def run_single_asset_module():
     # Metrics
     st.subheader("📈 Performance Metrics")
 
-    returns = df["price"].pct_change()
+    # Ensure we operate on a Series (not a single-column DataFrame)
+    price_series = df["price"]
+    if isinstance(price_series, pd.DataFrame):
+        price_series = price_series.iloc[:, 0]
 
-    st.write(f"**Max Drawdown:** {max_drawdown(df['price']):.2%}")
-    st.write(f"**Sharpe Ratio:** {sharpe_ratio(returns):.2f}")
-    st.write(f"**Annual Volatility:** {returns.std() * (252**0.5):.2%}")
+    returns = price_series.pct_change()
+
+    # Compute metrics and coerce to scalars for formatting
+    try:
+        md = max_drawdown(price_series)
+        if isinstance(md, pd.Series):
+            md = md.min()
+        md_val = float(md)
+        st.write(f"**Max Drawdown:** {md_val:.2%}")
+    except Exception:
+        st.write("**Max Drawdown:** N/A")
+
+    try:
+        sr = sharpe_ratio(returns)
+        st.write(f"**Sharpe Ratio:** {float(sr):.2f}")
+    except Exception:
+        st.write("**Sharpe Ratio:** N/A")
+
+    try:
+        ann_vol = float(returns.std() * (252 ** 0.5))
+        st.write(f"**Annual Volatility:** {ann_vol:.2%}")
+    except Exception:
+        st.write("**Annual Volatility:** N/A")
 
     # Plot
     st.subheader("📊 Price & Strategy Performance")
     st.line_chart(df[["price", "strategy"]])
 
-    # Autorefresh every 5 minutes
-    st.experimental_rerun()
+    # Note: removed automatic immediate rerun to avoid infinite rerun loops.

@@ -1,4 +1,4 @@
-from utils import load_historical_data, max_drawdown, sharpe_ratio
+from app.utils import load_historical_data, max_drawdown, sharpe_ratio
 
 df = load_historical_data("BTC-USD")
 returns = df["price"].pct_change()

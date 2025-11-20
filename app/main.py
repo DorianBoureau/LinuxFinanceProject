@@ -1,5 +1,5 @@
 import streamlit as st
-from single_asset import run_single_asset_module
+from app.single_asset import run_single_asset_module
 
 st.set_page_config(layout="wide")
 
