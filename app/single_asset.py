@@ -40,13 +40,10 @@ def momentum_strategy(df, window=20):
 def ma_crossover_strategy(df, fast=20, slow=100):
     df = df.copy()
     p = ensure_series(df["price"])
-
     df["fast_ma"] = p.rolling(fast).mean()
     df["slow_ma"] = p.rolling(slow).mean()
-
     df["signal"] = (df["fast_ma"] > df["slow_ma"]).astype(int)
     df["return"] = p.pct_change()
-
     df["strategy"] = (1 + df["return"] * df["signal"]).cumprod()
     return df
 
@@ -82,7 +79,6 @@ def run_single_asset_module():
         ["Buy & Hold", "Momentum", "MA Crossover"]
     )
 
-    # Strategy parameters
     fast, slow, window = None, None, None
 
     if strategy_choice == "Momentum":
@@ -93,16 +89,24 @@ def run_single_asset_module():
         slow = st.sidebar.slider("Slow MA (days)", 50, 200, 100)
 
     # ============================================================
-    # REAL TIME PRICE
+    # REAL TIME PRICE (SILENT FALLBACK)
     # ============================================================
 
     st.subheader(f"Current Price — {asset}")
+
     price_now = get_realtime_price(asset)
 
     if price_now is None:
-        st.error("Real-time price unavailable.")
+        df_tmp = load_historical_data(asset)
+        if df_tmp is not None and not df_tmp.empty:
+            price_now = float(df_tmp["price"].iloc[-1])
+        else:
+            price_now = None
+
+    if price_now is None:
+        st.metric("Current Price", "N/A")
     else:
-        st.metric("Real-Time Price", f"{price_now:,.6f}")
+        st.metric("Current Price", f"{price_now:,.6f}")
 
     st.write("")
 
@@ -124,17 +128,17 @@ def run_single_asset_module():
     # ============================================================
 
     if timeframe == "1D":
-        df = df.tail(7)
+        df = df.tail(3)      
     elif timeframe == "1W":
-        df = df.tail(7)
+        df = df.tail(7)      
     elif timeframe == "1M":
-        df = df.tail(30)
+        df = df.tail(30)     
     elif timeframe == "3M":
-        df = df.tail(90)
+        df = df.tail(90)     
     elif timeframe == "1Y":
-        df = df.tail(365)
+        df = df.tail(365)     
     elif timeframe == "5Y":
-        df = df.tail(1825)
+        df = df.tail(1825)   
 
     # ============================================================
     # TABS
@@ -158,13 +162,10 @@ def run_single_asset_module():
         st.write(f"Total rows: **{len(df)}**")
         st.write("")
 
-        # Select & apply strategy
         if strategy_choice == "Buy & Hold":
             df = buy_and_hold(df)
-
         elif strategy_choice == "Momentum":
             df = momentum_strategy(df, window)
-
         elif strategy_choice == "MA Crossover":
             df = ma_crossover_strategy(df, fast, slow)
 
@@ -180,59 +181,65 @@ def run_single_asset_module():
         strategy_returns = strategy_series.pct_change()
 
         col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Max Drawdown", f"{max_drawdown(strategy_series):.2%}")
-
-        with col2:
-            st.metric("Sharpe Ratio", f"{sharpe_ratio(strategy_returns):.2f}")
-
-        with col3:
-            vol = strategy_returns.std() * np.sqrt(252)
-            st.metric("Volatility (Annual)", f"{vol:.2%}")
+        col1.metric("Max Drawdown", f"{max_drawdown(strategy_series):.2%}")
+        col2.metric("Sharpe Ratio", f"{sharpe_ratio(strategy_returns):.2f}")
+        col3.metric("Volatility (Annual)", f"{(strategy_returns.std()*np.sqrt(252)):.2%}")
 
         # ============================================================
-        # PRICE CHART
+        # PRICE + STRATEGY CHART
         # ============================================================
 
-        st.write("### Price Chart")
+        st.write("### Price & Strategy Chart")
 
         fig = go.Figure()
 
-        # Price curve
         fig.add_trace(go.Scatter(
-            x=df.index, y=price_series,
-            mode="lines", name="Price",
-            line=dict(color="#4AA3FF", width=2)
+            x=df.index,
+            y=price_series,
+            mode="lines",
+            name="Price",
+            line=dict(color="#4AA3FF", width=2),
+            yaxis="y1"
         ))
 
-        # Strategy normalized to price scale
-        strategy_norm = strategy_series * (price_series.iloc[0] / strategy_series.iloc[0])
-
         fig.add_trace(go.Scatter(
-            x=df.index, y=strategy_norm,
-            mode="lines", name="Strategy",
-            line=dict(color="#FFA500", width=1.6)
+            x=df.index,
+            y=strategy_series,
+            mode="lines",
+            name="Strategy (Cumulative Return)",
+            line=dict(color="#FFA500", width=2),
+            yaxis="y2"
         ))
 
-        # Zoom & style
-        y_max = float(price_series.max())
-        y_min = float(price_series.min())
-        pad = (y_max - y_min) * 0.20
-
-        fig.update_yaxes(
-            range=[y_min - pad, y_max + pad],
-            fixedrange=False
-        )
+        # 🔥🔥🔥 FREE ZOOM + FREE NAVIGATION FIX HERE 🔥🔥🔥
+        fig.update_xaxes(fixedrange=False)   # free horizontal zoom
+        fig.update_yaxes(fixedrange=False)   # free vertical zoom
 
         fig.update_layout(
-            height=520,
+            height=540,
             hovermode="x unified",
             dragmode="pan",
-            xaxis=dict(title="Date", rangeslider=dict(visible=True)),
+            xaxis=dict(
+                title="Date",
+                rangeslider=dict(visible=True),
+                fixedrange=False   # allow zoom
+            ),
+            yaxis=dict(
+                title="Price",
+                side="left",
+                showgrid=False,
+                fixedrange=False   # allow zoom
+            ),
+            yaxis2=dict(
+                title="Strategy (Return ×)",
+                overlaying="y",
+                side="right",
+                showgrid=False,
+                fixedrange=False   # allow zoom
+            ),
             plot_bgcolor="#0E1117",
             paper_bgcolor="#0E1117",
-            font=dict(color="white")
+            font=dict(color="white"),
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -264,26 +271,16 @@ def run_single_asset_module():
         st.markdown("---")
 
         col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("📉 Lowest Price", f"{low_price:,.2f} USD")
-
-        with col2:
-            st.metric("📈 Highest Price", f"{high_price:,.2f} USD")
-
-        with col3:
-            st.metric("💰 Current Price", f"{last_price:,.2f} USD")
+        col1.metric("📉 Lowest Price", f"{low_price:,.2f} USD")
+        col2.metric("📈 Highest Price", f"{high_price:,.2f} USD")
+        col3.metric("💰 Current Price", f"{last_price:,.2f} USD")
 
         st.markdown("---")
 
         st.markdown(
             f"""
             <h3>Total Performance Since Start:</h3>
-            <div style="
-                font-size:32px;
-                font-weight:700;
-                color:{perf_color};
-            ">
+            <div style="font-size:32px; font-weight:700; color:{perf_color};">
                 {total_perf:.2f}%
             </div>
             """,
@@ -291,72 +288,82 @@ def run_single_asset_module():
         )
 
     # ============================================================
-    # TAB STRATEGY DETAILS
+    # TAB STRATEGY DETAILS — ENGLISH VERSION
     # ============================================================
 
     with tab_strategy:
 
         st.subheader("📘 Strategy Details")
+        st.markdown("---")
 
         # --------------------------------------------------------
-        # Buy & Hold
+        # 1. BUY & HOLD
         # --------------------------------------------------------
-        st.markdown(
-            """
-            # 📌 1. **Buy & Hold Strategy**
-            - Buy once  
-            - Never sell  
-            - Exposed to all cycles  
-            - Very high volatility  
-            - Large drawdowns  
-            ---
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+        ## 📌 1. Buy & Hold Strategy
 
-        # --------------------------------------------------------
-        # Momentum
-        # --------------------------------------------------------
-        st.markdown(
-            """
-            # 📌 2. **Momentum Strategy**
-            **Rule:**  
-            > Go long when today’s price is higher than X days ago.  
-            """
-        )
+        **Concept:**  
+        Buy once and hold forever.
 
-        st.markdown(
-            """
-            ### ✔ Advantages
-            - Simple trend-following method  
-            - Often reduces drawdowns  
+        **Rules:**
+        - Initial purchase  
+        - Never sell  
+        - 100% exposure  
 
-            ### ❗ Drawbacks
-            - Can underperform in sideways markets  
-            ---
-            """
-        )
+        **Advantages:**
+        - ✔ Very simple  
+        - ✔ No optimization required  
+        - ✔ Strong long-term performance  
+
+        **Drawbacks:**
+        - ❌ Huge drawdowns  
+        - ❌ Always exposed to market risk  
+        """)
+        st.markdown("---")
 
         # --------------------------------------------------------
-        # MA Crossover (only if selected)
+        # 2. MOMENTUM
         # --------------------------------------------------------
-        if strategy_choice == "MA Crossover":
-            st.markdown(
-                f"""
-                # 📌 3. **MA Crossover Strategy**
-                **Rule:**  
-                > Go long when the {fast}-day moving average is above the {slow}-day moving average.  
-                > Stay in cash otherwise.
+        st.markdown(f"""
+        ## 📌 2. Momentum Strategy
 
-                ### ✔ Advantages
-                - Robust trend-following  
-                - Filters noise  
-                - Reduces drawdowns
+        **Concept:**  
+        Price must be higher than it was **{window} days ago**.
 
-                ### ❗ Drawbacks
-                - Whipsaws in low-volatility periods  
-                - Can miss sudden reversals  
-                ---
-                """,
-                unsafe_allow_html=True
-            )
+        **Rules:**
+        - Long if `price > price {window} days ago`  
+        - Cash otherwise  
+
+        **Advantages:**
+        - ✔ Reduces drawdowns  
+        - ✔ Performs well in bullish trends  
+
+        **Drawbacks:**
+        - ❌ Performs poorly in sideways markets  
+        """)
+        st.markdown("---")
+
+        # --------------------------------------------------------
+        # 3. MA CROSSOVER
+        # --------------------------------------------------------
+        st.markdown(f"""
+        ## 📌 3. Moving Average Crossover Strategy
+
+        **Concept:**  
+        Use two moving averages:  
+        - Fast MA: **{fast} days**  
+        - Slow MA: **{slow} days**
+
+        **Rules:**
+        - Long if `MA{fast} > MA{slow}`  
+        - Cash otherwise  
+
+        **Advantages:**
+        - ✔ Robust  
+        - ✔ Filters short-term noise  
+
+        **Drawbacks:**
+        - ❌ Late signals  
+        - ❌ Frequent whipsaws  
+        """)
+
