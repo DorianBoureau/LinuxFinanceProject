@@ -1,167 +1,145 @@
-# LinuxFinanceProject
+# 📈 Financial Engineering Dashboard (Quant A & B)
 
+A professional-grade dashboard for real-time asset analysis and multi-asset portfolio simulation.
+Deployed on a **Linux Cloud VM (Azure)** and automated with **Cron** jobs.
 
-Single Asset Quantitative Analysis Module
------------------------------------------
+---
 
-This project provides an interactive Streamlit application for analyzing the performance
-of a single financial asset using quantitative methods. It includes historical data
-visualization, trading strategy backtesting, real-time price integration, and performance
-metrics.
+## 📖 Project Overview
 
-1. Supported Assets
--------------------
+This project provides a complete environment for quantitative finance, split into two core modules:
 
-The module allows the user to analyze several assets, including:
+1.  **Quant A (Single Asset):** Technical analysis, backtesting strategies, and real-time monitoring.
+2.  **Quant B (Portfolio Management):** Asset allocation, rebalancing simulation, and risk management (VaR, CVaR).
 
-- BTC-USD
-- AAPL
-- EURUSD=X
-- GC=F
+**Tech Stack:** Python, Streamlit, Plotly, yfinance, Pandas, Linux (Ubuntu), Bash.
 
-Data is retrieved using:
+---
 
-- get_realtime_price()        → retrieves the current price (with fallback)
-- load_historical_data(asset) → loads historical market data
+## 🚀 Key Features
 
-2. Timeframe System
--------------------
+### 🔹 Module A: Single Asset Analysis
 
-The user can select a timeframe. Each timeframe corresponds to the last N rows of data:
+_Designed for in-depth analysis of individual instruments (Stocks, Forex, Crypto)._
 
-- 1D  → last 3 rows  
-- 1W  → last 7 rows  
-- 1M  → last 30 rows  
-- 3M  → last 90 rows  
-- 1Y  → last 365 rows  
-- 5Y  → last 1825 rows  
-- MAX → entire dataset
+- **Supported Assets:** Pre-configured list (BTC-USD, AAPL, EURUSD=X, GC=F) + dynamic fetching.
+- **Timeframe System:** Flexible analysis periods (1D, 1W, 1M, 3M, 1Y, 5Y, MAX).
+- **Algorithmic Strategies:**
+  - _Buy & Hold:_ Benchmark strategy.
+  - _Momentum:_ Trend following based on rolling windows.
+  - _Moving Average Crossover:_ Classic signal generation (Fast vs Slow MA).
+- **Metrics:** Sharpe Ratio, Max Drawdown, Annualized Volatility.
 
-This system ensures that calculations, charts, and indicators work reliably.
+### 🔹 Module B: Portfolio Management
 
+_Designed for asset allocation and risk parity simulation._
 
-3. Trading Strategies
----------------------
+- **Dynamic Inputs:** Users can input _any_ ticker available on Yahoo Finance (e.g., `LVMH.PA`, `ETH-USD`).
+- **Allocation Engines:**
+  - _Equal Weight (1/N)_
+  - _Inverse Volatility (Risk Parity)_: Allocates less capital to volatile assets.
+  - _Custom Weights_: Manual user-defined allocation.
+- **Advanced Simulation:** Handles **Drift** (price evolution between rebalancing dates) and **Rebalancing Frequencies** (Monthly, Weekly, Buy & Hold).
+- **Pro Risk Metrics:** Value at Risk (VaR 95%), Expected Shortfall (CVaR), Sortino Ratio, and **Diversification Benefit**.
+- **Visualizations:** Correlation Matrix (Heatmap), Underwater Plot (Drawdown), and Performance Comparison.
 
-The module includes three quantitative trading strategies.
+---
 
-3.1 Buy & Hold
---------------
-- Buy once at the start and hold permanently
-- Always fully exposed to the market
-- Strategy curve = normalized price
+## 🛠️ System Architecture & Automation
 
-Pros:
-- Simple, stable over long periods
+This project is not just a local script; it is deployed as a production-like service.
 
-Cons:
-- Large drawdowns
-- No risk control
+### 1. Daily Reporting (Cron Job)
 
-3.2 Momentum Strategy
-----------------------
-- Long position when price > price X days ago
-- Otherwise stay in cash
-- User-defined parameter: window
+A background script automatically generates a financial report (Volatility, Returns, Drawdown) every day at **8:00 PM**.
 
-Pros:
-- Strong in trending markets
+- **Script:** `scripts/daily_report.py` (Headless execution, no GUI).
+- **Cron Configuration (on VM):**
+  ```bash
+  0 20 * * * /home/azureuser/LinuxFinanceProject/venv/bin/python /home/azureuser/LinuxFinanceProject/scripts/daily_report.py >> /home/azureuser/LinuxFinanceProject/cron_log.txt 2>&1
+  ```
 
-Cons:
-- Weak in sideways markets
+### 2. 24/7 Availability (Systemd)
 
-3.3 Moving Average Crossover
------------------------------
-- Long position when fast moving average > slow moving average
-- Otherwise stay in cash
-- User-defined parameters: fast, slow
+The dashboard runs continuously using a Linux Service, ensuring it restarts automatically after server reboots or crashes.
 
-Pros:
-- Trend following, noise filtering
+- **Service File:** `/etc/systemd/system/finance-app.service`
 
-Cons:
-- Delayed entries, frequent whipsaws
+  ```ini
+  [Unit]
+  Description=Streamlit Finance Dashboard
+  After=network.target
 
+  [Service]
+  User=azureuser
+  WorkingDirectory=/home/azureuser/LinuxFinanceProject
+  ExecStart=/home/azureuser/LinuxFinanceProject/venv/bin/streamlit run app/main.py --server.port 8501
+  Restart=always
 
-4. Interactive Chart (Plotly)
-------------------------------
+  [Install]
+  WantedBy=multi-user.target
+  ```
 
-The chart displays:
-- The asset price curve
-- The cumulative return curve of the selected strategy
+---
 
-Features:
-- Full zooming and panning
-- Range slider
-- Unified hover mode
-- Dark theme
-- Clean and responsive display
+## 📂 Project Structure
 
-
-5. Performance Metrics
-----------------------
-
-The module automatically computes:
-
-- Maximum Drawdown
-- Sharpe Ratio
-- Annualized Volatility
-
-These metrics allow evaluating the risk and efficiency of each strategy.
-
-
-6. Information Panel
----------------------
-
-This panel displays:
-
-- Start date of the dataset
-- End date of the dataset
-- Lowest price
-- Highest price
-- Current price
-- Total performance since the beginning of the selected timeframe
-
-
-7. Strategy Description Panel
-------------------------------
-
-This panel explains in detail:
-
-- The concept behind each strategy
-- Entry and exit rules
-- Pros and cons
-- Values of user-selected parameters
-
-
-8. Project Structure
----------------------
-
+````text
 LinuxFinanceProject/
 │
-├── app/
-│   ├── main.py
-│   ├── single_asset.py
-│   ├── utils.py
-│   ├── config.py
+├── app/                        # Main Application Code
+│   ├── main.py                 # Entry point (Tabs & Auto-refresh logic)
+│   ├── single_asset.py         # Quant A Logic
+│   ├── utils.py                # Shared utilities
+│   │
+│   └── quantB/                 # Quant B Package
+│       ├── dashboard.py        # UI & Interaction
+│       ├── data_loader.py      # Bulk Data Fetching & Caching
+│       ├── metrics.py          # Financial Math (VaR, Sortino, Div Effect)
+│       └── portfolio_engine.py # Backtesting Core (Drift & Rebalancing)
 │
-├── data/
-├── scripts/
-├── requirements.txt
-├── README.md
+├── data/                       # Local data storage (optional)
+├── reports/                    # Generated daily reports (txt/csv)
+├── scripts/                    # Backend automation scripts
+│   └── daily_report.py         # Cron-triggered reporting script
+│
+├── requirements.txt            # Python dependencies
+└── README.md                   # Documentation
 
+---
 
-9. Summary
------------
+## ⚙️ Installation & Usage
 
-This module provides a complete environment for:
+### Local Setup
+1.  Clone the repository:
+    ```bash
+    git clone [https://github.com/YOUR_USERNAME/LinuxFinanceProject.git](https://github.com/YOUR_USERNAME/LinuxFinanceProject.git)
+    cd LinuxFinanceProject
+    ```
+2.  Create a virtual environment:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # (On Windows: venv\Scripts\activate)
+    ```
+3.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  Run the application:
+    ```bash
+    streamlit run app/main.py
+    ```
 
-- Quantitative backtesting
-- Visualization of historical asset data
-- Comparison of trading strategies
-- Real-time and historical price integration
+### Accessing the Live VM
+The application is hosted on an Azure Virtual Machine.
+* **URL:** `http://[VM_IP_ADDRESS]:8501`
+* *Note: Ensure port 8501 is allowed in Azure Networking settings.*
 
-It is designed to be simple, modular, and extensible for further financial research
-and development.
+---
 
+## 👥 Authors
+* **[Student Name 1]** - Quant A Module (Single Asset)
+* **[Student Name 2]** - Quant B Module (Portfolio & Infrastructure)
 
+*Project carried out as part of the Master in Financial Engineering.*
+````
