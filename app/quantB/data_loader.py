@@ -2,47 +2,47 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st
 
-def load_single_asset(asset, start, end):
+@st.cache_data(ttl=24*3600)  # Cache data for 24h to speed up user experience
+def load_market_data(tickers, start_date, end_date):
     """
-    Charge un seul asset via yfinance (compatible avec ton Quant A).
-    Retourne un DataFrame contenant uniquement la colonne 'Close'.
+    Downloads data for multiple tickers at once.
+    Handles yfinance MultiIndex formatting issues automatically.
     """
-    try:
-        data = yf.download(asset, start=start, end=end, progress=False)
-        if data.empty:
-            st.warning(f"Aucune donnée trouvée pour {asset}")
-            return None
-        data = data[['Close']]
-        data.rename(columns={'Close': asset}, inplace=True)
-        return data
-    except Exception as e:
-        st.error(f"Erreur lors du chargement de {asset} : {e}")
+    if not tickers:
         return None
 
+    try:
+        # Bulk download is faster than looping
+        data = yf.download(tickers, start=start_date, end=end_date, group_by='ticker', auto_adjust=True)
+    except Exception as e:
+        st.error(f"Critical error during download: {e}")
+        return None
 
-def load_multiple_assets(asset_list, start, end):
+    # Handle the single ticker edge-case (yfinance returns different structure)
+    if len(tickers) == 1:
+        ticker = tickers[0]
+        # Force MultiIndex structure to match the multi-asset logic
+        data.columns = pd.MultiIndex.from_product([[ticker], data.columns])
+
+    close_prices = pd.DataFrame()
+
+    for ticker in tickers:
+        try:
+            # We only need the 'Close' price for this module
+            if (ticker, 'Close') in data.columns:
+                close_prices[ticker] = data[(ticker, 'Close')]
+            elif 'Close' in data.columns and len(tickers) == 1:
+                close_prices[ticker] = data['Close']
+        except KeyError:
+            st.warning(f"Data not found for {ticker}")
+
+    # Clean missing values: forward fill first, then drop leading NaNs
+    close_prices = close_prices.ffill().dropna()
+
+    return close_prices
+
+def get_returns(prices_df):
     """
-    Charge plusieurs actifs et fusionne leurs prix de clôture dans un seul DataFrame.
+    Computes simple arithmetic returns (pct_change).
     """
-    merged_df = pd.DataFrame()
-
-    for asset in asset_list:
-        df = load_single_asset(asset, start, end)
-        if df is None:
-            continue
-
-        if merged_df.empty:
-            merged_df = df
-        else:
-            merged_df = merged_df.join(df, how="outer")
-
-    merged_df.dropna(inplace=True)
-
-    return merged_df
-
-
-def get_returns(price_df):
-    """
-    Transforme les prix en rendements journaliers.
-    """
-    return price_df.pct_change().dropna()
+    return prices_df.pct_change().dropna()
