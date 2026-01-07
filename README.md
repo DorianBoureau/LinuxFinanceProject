@@ -147,9 +147,3 @@ The application is hosted on an Azure Virtual Machine.
 
 - **Teofil BEJOT** - Quant A Module (Single Asset)
 - **Dorian BOUREAU** - Quant B Module (Portfolio & Infrastructure)
-
-_Project carried out as part of the Master in Financial Engineering._
-
-```
-
-```
