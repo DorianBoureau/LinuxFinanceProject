@@ -1,88 +1,98 @@
 import numpy as np
 import pandas as pd
 
-# -------------------------------------------------------------------
-# Correlation Matrix
-# -------------------------------------------------------------------
-def correlation_matrix(returns_df):
+def compute_annualized_return(daily_returns, freq=252):
     """
-    Matrice de corrélation entre les actifs.
+    Geometric annualized return.
+    Formula: (1 + r_total)^(252/N) - 1
     """
-    return returns_df.corr()
+    if len(daily_returns) < 2:
+        return 0.0
 
+    cumulative = (1 + daily_returns).prod()
+    n_days = len(daily_returns)
 
-# -------------------------------------------------------------------
-# Annualized Return
-# -------------------------------------------------------------------
-def annualized_return(portfolio_returns, freq=252):
-    """
-    Rendement annualisé d'une série de rendements journaliers.
-    freq = 252 pour actions/crypto, 365 pour FX
-    """
-    mean_daily = portfolio_returns.mean()
-    return (1 + mean_daily)**freq - 1
+    return (cumulative) ** (freq / n_days) - 1
 
+def compute_annualized_volatility(daily_returns, freq=252):
+    """Annualized standard deviation."""
+    return daily_returns.std() * np.sqrt(freq)
 
-# -------------------------------------------------------------------
-# Annualized Volatility
-# -------------------------------------------------------------------
-def annualized_volatility(portfolio_returns, freq=252):
+def compute_sharpe_ratio(daily_returns, risk_free_rate=0.0, freq=252):
     """
-    Volatilité annualisée.
+    Sharpe Ratio = (R_p - R_f) / Vol_p
     """
-    return portfolio_returns.std() * np.sqrt(freq)
+    mu = compute_annualized_return(daily_returns, freq)
+    vol = compute_annualized_volatility(daily_returns, freq)
 
+    if vol == 0:
+        return 0.0
+    return (mu - risk_free_rate) / vol
 
-# -------------------------------------------------------------------
-# Sharpe Ratio
-# -------------------------------------------------------------------
-def sharpe_ratio(portfolio_returns, risk_free_rate=0.02, freq=252):
+def compute_sortino_ratio(daily_returns, risk_free_rate=0.0, freq=252):
     """
-    Sharpe ratio du portefeuille.
-    risk_free_rate = 2% par défaut
+    Sortino Ratio: Similar to Sharpe but only penalizes downside volatility.
+    Better suited for asymmetrical assets like Crypto.
     """
-    ann_return = annualized_return(portfolio_returns, freq)
-    ann_vol = annualized_volatility(portfolio_returns, freq)
+    mu = compute_annualized_return(daily_returns, freq)
 
-    if ann_vol == 0:
+    # Consider only negative returns for risk calculation
+    negative_returns = daily_returns[daily_returns < 0]
+
+    if len(negative_returns) < 2:
         return np.nan
 
-    return (ann_return - risk_free_rate) / ann_vol
+    downside_dev = negative_returns.std() * np.sqrt(freq)
 
+    if downside_dev == 0:
+        return np.nan
 
-# -------------------------------------------------------------------
-# Max Drawdown
-# -------------------------------------------------------------------
-def max_drawdown(cumulative_values):
+    return (mu - risk_free_rate) / downside_dev
+
+def compute_max_drawdown(daily_returns):
     """
-    Max drawdown = pire perte maximale depuis un plus haut historique.
-    cumulative_values doit être une courbe de NAV.
+    Computes Maximum Drawdown (peak-to-valley loss).
+    Returns a negative float (e.g., -0.20 for 20% loss).
     """
-    rolling_max = cumulative_values.cummax()
-    drawdown = (cumulative_values - rolling_max) / rolling_max
+    cum_ret = (1 + daily_returns).cumprod()
+    peak = cum_ret.cummax()
+    drawdown = (cum_ret - peak) / peak
     return drawdown.min()
 
-
-# -------------------------------------------------------------------
-# Diversification (réduction de volatilité)
-# -------------------------------------------------------------------
-def diversification_effect(returns_df, weights):
+def compute_var_historical(daily_returns, confidence_level=0.95):
     """
-    Calcule l'effet de diversification :
-    sum(w_i * vol_i) - vol_portefeuille
-
-    Si le résultat est positif → bonne diversification.
+    Historical Value at Risk (VaR) at 95%.
+    "We are 95% confident the daily loss won't exceed X%".
     """
-    weights = np.array(weights)
+    return np.percentile(daily_returns, 100 * (1 - confidence_level))
 
-    # volatilités des actifs
-    vols = returns_df.std()
+def compute_cvar_historical(daily_returns, confidence_level=0.95):
+    """
+    Conditional VaR (Expected Shortfall).
+    Average loss in the worst (1-conf)% scenarios.
+    """
+    var = compute_var_historical(daily_returns, confidence_level)
+    return daily_returns[daily_returns <= var].mean()
 
-    # volatilité pondérée (sans diversification)
-    naive_vol = np.sum(weights * vols)
+def compute_correlation_matrix(returns_df):
+    return returns_df.corr()
 
-    # volatilité réelle du portefeuille
-    cov = returns_df.cov()
-    port_vol = np.sqrt(weights.T @ cov @ weights)
+def compute_diversification_effect(returns_df, weights):
+    """
+    Calculates the 'Diversification Benefit'.
+    Difference between the weighted average of individual volatilities
+    and the actual portfolio volatility.
+    """
+    coeffs = np.array(weights)
+    # 1. Individual annualized volatilities
+    individual_vols = returns_df.std() * np.sqrt(252)
 
-    return naive_vol - port_vol
+    # 2. Naive risk (assuming perfect correlation = 1)
+    naive_risk = np.dot(coeffs, individual_vols)
+
+    # 3. Real portfolio risk (using Covariance matrix)
+    cov_matrix = returns_df.cov() * 252
+    port_variance = np.dot(coeffs.T, np.dot(cov_matrix, coeffs))
+    real_risk = np.sqrt(port_variance)
+
+    return naive_risk - real_risk

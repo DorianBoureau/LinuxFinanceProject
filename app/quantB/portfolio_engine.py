@@ -2,80 +2,91 @@ import numpy as np
 import pandas as pd
 
 # -------------------------------------------------------------------
-# Equal Weight Portfolio
+# 1. Allocation Strategies (Weight Calculation)
 # -------------------------------------------------------------------
-def equal_weight_weights(n_assets):
-    """
-    Renvoie des poids égaux pour n actifs.
-    """
+
+def get_equal_weights(n_assets):
+    """Naive allocation: 1/N"""
+    if n_assets == 0:
+        return []
     return np.ones(n_assets) / n_assets
 
+def get_inverse_volatility_weights(returns_df):
+    """
+    Risk Parity (Naive):
+    Assets with higher volatility get lower weights.
+    w_i = (1/vol_i) / sum(1/vol_j)
+    """
+    vols = returns_df.std()
+    inv_vols = 1 / vols
+    return inv_vols / inv_vols.sum()
+
+def normalize_user_weights(weights_dict, assets_order):
+    """
+    Ensures user-defined weights sum to 1.0 and match the DataFrame column order.
+    """
+    raw_weights = np.array([weights_dict.get(asset, 0) for asset in assets_order])
+
+    if raw_weights.sum() == 0:
+        return get_equal_weights(len(assets_order))
+
+    return raw_weights / raw_weights.sum()
+
 
 # -------------------------------------------------------------------
-# Custom Weight Portfolio
+# 2. Simulation Engine (Handling Drift)
 # -------------------------------------------------------------------
-def normalize_weights(weights):
+
+def run_portfolio_simulation(returns_df, weights, rebalance_freq="No Rebal"):
     """
-    Normalise une liste de poids pour que leur somme = 1.
+    Simulates portfolio evolution allowing for weight drift between rebalancing dates.
+
+    returns_df: Daily returns (pct_change)
+    weights: Target weights array
+    rebalance_freq: 'No Rebal', 'W' (Weekly), 'M' (Monthly), 'Q' (Quarterly)
     """
     weights = np.array(weights)
-    return weights / weights.sum()
 
+    # Case 1: Buy and Hold (No Rebalancing)
+    # Weights drift naturally as assets grow at different speeds.
+    if rebalance_freq == "No Rebal":
+        cumulative_returns = (1 + returns_df).cumprod()
+        # Portfolio Value = Sum(weight_i * Asset_Growth_i)
+        portfolio_idx = cumulative_returns.dot(weights)
 
-# -------------------------------------------------------------------
-# Portefeuille sans rebalancing
-# -------------------------------------------------------------------
-def compute_portfolio_returns(returns_df, weights):
-    """
-    Calcule le rendement du portefeuille chaque jour.
-    returns_df = DataFrame des rendements journaliers (pct_change)
-    weights = vecteur numpy
-    """
-    weights = np.array(weights).reshape(-1,)
-    port_ret = returns_df.dot(weights)
-    return port_ret
+        # Recover daily returns from the synthetic index
+        portfolio_ret = portfolio_idx.pct_change().fillna(0)
+        # Fix first day precision
+        portfolio_ret.iloc[0] = returns_df.iloc[0].dot(weights)
+        return portfolio_ret
 
+    # Case 2: Periodic Rebalancing
+    # We reset weights to target at the start of each period.
+    else:
+        periods = returns_df.groupby(pd.Grouper(freq=rebalance_freq))
+        all_period_returns = []
 
-# -------------------------------------------------------------------
-# Rebalancing
-# -------------------------------------------------------------------
-def rebalance_portfolio(returns_df, weights, freq="M"):
-    """
-    Rebalance le portefeuille selon une fréquence donnée :
-    - 'W' = weekly
-    - 'M' = monthly
+        for date, period_data in periods:
+            if period_data.empty:
+                continue
 
-    Le rebalancing consiste à remettre les poids comme au départ
-    sur la période choisie.
-    """
+            # Within a period, we drift (Buy & Hold logic)
+            period_cum_growth = (1 + period_data).cumprod()
+            period_portfolio_value = period_cum_growth.dot(weights)
 
-    weights = np.array(weights).reshape(-1,)
+            period_daily_rets = period_portfolio_value.pct_change()
 
-    # On découpe les données en sous-périodes selon la fréquence
-    periods = returns_df.resample(freq)
+            # Reset weights implies the first day return is just the dot product
+            period_daily_rets.iloc[0] = period_data.iloc[0].dot(weights)
 
-    all_returns = []
+            all_period_returns.append(period_daily_rets)
 
-    for period_start, period_df in periods:
-        if len(period_df) == 0:
-            continue
-
-        # rendement du portefeuille sur cette période
-        period_port_ret = period_df.dot(weights)
-
-        all_returns.append(period_port_ret)
-
-    # concatène les séries
-    final_series = pd.concat(all_returns)
-    return final_series
-
+        return pd.concat(all_period_returns)
 
 # -------------------------------------------------------------------
-# Valeur cumulée du portefeuille (NAV)
+# 3. Utils
 # -------------------------------------------------------------------
-def compute_cumulative_value(portfolio_returns, initial_value=100):
-    """
-    Transforme les rendements journaliers du portefeuille
-    en courbe de valeur cumulée.
-    """
-    return initial_value * (1 + portfolio_returns).cumprod()
+
+def compute_cumulative_return(daily_returns):
+    """Calculates NAV curve (Base 1)"""
+    return (1 + daily_returns).cumprod()
