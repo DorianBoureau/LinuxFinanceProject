@@ -84,7 +84,7 @@ The dashboard runs continuously using a Linux Service, ensuring it restarts auto
 
 ## 📂 Project Structure
 
-````text
+```text
 LinuxFinanceProject/
 │
 ├── app/                        # Main Application Code
@@ -107,15 +107,17 @@ LinuxFinanceProject/
 ├── .gitignore                  # Ignore files when committing changes
 ├── requirements.txt            # Python dependencies
 └── README.md                   # Documentation
+```
 
 ---
 
 ## ⚙️ Installation & Usage
 
 ### Local Setup
+
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/YOUR_USERNAME/LinuxFinanceProject.git](https://github.com/YOUR_USERNAME/LinuxFinanceProject.git)
+    git clone [https://github.com/DorianBoureau/LinuxFinanceProject.git](https://github.com/DorianBoureau/LinuxFinanceProject.git)
     cd LinuxFinanceProject
     ```
 2.  Create a virtual environment:
@@ -133,15 +135,21 @@ LinuxFinanceProject/
     ```
 
 ### Accessing the Live VM
+
 The application is hosted on an Azure Virtual Machine.
-* **URL:** `http://[VM_IP_ADDRESS]:8501`
-* *Note: Ensure port 8501 is allowed in Azure Networking settings.*
+
+- **URL:** `http://4.235.121.158:8501`
+- _Note: Ensure port 8501 is allowed in Azure Networking settings._
 
 ---
 
 ## 👥 Authors
-* **Teofil BEJOT** - Quant A Module (Single Asset)
-* **Dorian BOUREAU** - Quant B Module (Portfolio & Infrastructure)
 
-*Project carried out as part of the Master in Financial Engineering.*
-````
+- **Teofil BEJOT** - Quant A Module (Single Asset)
+- **Dorian BOUREAU** - Quant B Module (Portfolio & Infrastructure)
+
+_Project carried out as part of the Master in Financial Engineering._
+
+```
+
+```
