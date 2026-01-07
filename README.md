@@ -104,6 +104,7 @@ LinuxFinanceProject/
 ├── scripts/                    # Backend automation scripts
 │   └── daily_report.py         # Cron-triggered reporting script
 │
+├── .gitignore                  # Ignore files when committing changes
 ├── requirements.txt            # Python dependencies
 └── README.md                   # Documentation
 

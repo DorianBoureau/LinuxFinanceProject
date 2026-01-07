@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from single_asset import run_single_asset_module
+from quantA.single_asset import run_single_asset_module
 from quantB.dashboard import run_quantB
 
 # Page configuration

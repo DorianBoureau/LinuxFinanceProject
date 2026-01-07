@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-from utils import (
+from quantA.utils import (
     get_realtime_price,
     load_historical_data,
     max_drawdown,
@@ -128,17 +128,17 @@ def run_single_asset_module():
     # ============================================================
 
     if timeframe == "1D":
-        df = df.tail(3)      
+        df = df.tail(3)
     elif timeframe == "1W":
-        df = df.tail(7)      
+        df = df.tail(7)
     elif timeframe == "1M":
-        df = df.tail(30)     
+        df = df.tail(30)
     elif timeframe == "3M":
-        df = df.tail(90)     
+        df = df.tail(90)
     elif timeframe == "1Y":
-        df = df.tail(365)     
+        df = df.tail(365)
     elif timeframe == "5Y":
-        df = df.tail(1825)   
+        df = df.tail(1825)
 
     # ============================================================
     # TABS
@@ -302,22 +302,22 @@ def run_single_asset_module():
         st.markdown("""
         ## 📌 1. Buy & Hold Strategy
 
-        **Concept:**  
+        **Concept:**
         Buy once and hold forever.
 
         **Rules:**
-        - Initial purchase  
-        - Never sell  
-        - 100% exposure  
+        - Initial purchase
+        - Never sell
+        - 100% exposure
 
         **Advantages:**
-        - ✔ Very simple  
-        - ✔ No optimization required  
-        - ✔ Strong long-term performance  
+        - ✔ Very simple
+        - ✔ No optimization required
+        - ✔ Strong long-term performance
 
         **Drawbacks:**
-        - ❌ Huge drawdowns  
-        - ❌ Always exposed to market risk  
+        - ❌ Huge drawdowns
+        - ❌ Always exposed to market risk
         """)
         st.markdown("---")
 
@@ -327,19 +327,19 @@ def run_single_asset_module():
         st.markdown(f"""
         ## 📌 2. Momentum Strategy
 
-        **Concept:**  
+        **Concept:**
         Price must be higher than it was **{window} days ago**.
 
         **Rules:**
-        - Long if `price > price {window} days ago`  
-        - Cash otherwise  
+        - Long if `price > price {window} days ago`
+        - Cash otherwise
 
         **Advantages:**
-        - ✔ Reduces drawdowns  
-        - ✔ Performs well in bullish trends  
+        - ✔ Reduces drawdowns
+        - ✔ Performs well in bullish trends
 
         **Drawbacks:**
-        - ❌ Performs poorly in sideways markets  
+        - ❌ Performs poorly in sideways markets
         """)
         st.markdown("---")
 
@@ -349,21 +349,21 @@ def run_single_asset_module():
         st.markdown(f"""
         ## 📌 3. Moving Average Crossover Strategy
 
-        **Concept:**  
-        Use two moving averages:  
-        - Fast MA: **{fast} days**  
+        **Concept:**
+        Use two moving averages:
+        - Fast MA: **{fast} days**
         - Slow MA: **{slow} days**
 
         **Rules:**
-        - Long if `MA{fast} > MA{slow}`  
-        - Cash otherwise  
+        - Long if `MA{fast} > MA{slow}`
+        - Cash otherwise
 
         **Advantages:**
-        - ✔ Robust  
-        - ✔ Filters short-term noise  
+        - ✔ Robust
+        - ✔ Filters short-term noise
 
         **Drawbacks:**
-        - ❌ Late signals  
-        - ❌ Frequent whipsaws  
+        - ❌ Late signals
+        - ❌ Frequent whipsaws
         """)
 
