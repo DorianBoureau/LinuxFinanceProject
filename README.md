@@ -89,8 +89,11 @@ LinuxFinanceProject/
 │
 ├── app/                        # Main Application Code
 │   ├── main.py                 # Entry point (Tabs & Auto-refresh logic)
-│   ├── single_asset.py         # Quant A Logic
-│   ├── utils.py                # Shared utilities
+│   │
+│   ├── quantA/                 # Quant A Package
+│   │   ├── config.py               # Initial Configuration
+│   │   ├── single_asset.py         # Quant A Logic
+│   │   └── utils.py                # Shared utilities
 │   │
 │   └── quantB/                 # Quant B Package
 │       ├── dashboard.py        # UI & Interaction
@@ -98,8 +101,6 @@ LinuxFinanceProject/
 │       ├── metrics.py          # Financial Math (VaR, Sortino, Div Effect)
 │       └── portfolio_engine.py # Backtesting Core (Drift & Rebalancing)
 │
-├── data/                       # Local data storage (optional)
-├── reports/                    # Generated daily reports (txt/csv)
 ├── scripts/                    # Backend automation scripts
 │   └── daily_report.py         # Cron-triggered reporting script
 │
@@ -138,8 +139,8 @@ The application is hosted on an Azure Virtual Machine.
 ---
 
 ## 👥 Authors
-* **[Student Name 1]** - Quant A Module (Single Asset)
-* **[Student Name 2]** - Quant B Module (Portfolio & Infrastructure)
+* **Teofil BEJOT** - Quant A Module (Single Asset)
+* **Dorian BOUREAU** - Quant B Module (Portfolio & Infrastructure)
 
 *Project carried out as part of the Master in Financial Engineering.*
 ````

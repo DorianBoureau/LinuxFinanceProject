@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st
 
-@st.cache_data(ttl=24*3600)  # Cache data for 24h to speed up user experience
+@st.cache_data(ttl=300)  # Cache data for 5 minutes to avoid redundant downloads
 def load_market_data(tickers, start_date, end_date):
     """
     Downloads data for multiple tickers at once.
